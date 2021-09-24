@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import base64
+import aiohttp
 
 from dydx3.constants import COLLATERAL_ASSET
 from dydx3.constants import COLLATERAL_TOKEN_DECIMALS
@@ -38,10 +39,27 @@ class Private(object):
         self.stark_private_key = stark_private_key
         self.default_address = default_address
         self.api_key_credentials = api_key_credentials
+        self._session = None
+
+    @property
+    def session(self):
+        """
+        Lazily created the session
+        """
+        if self._session:
+            return self._session
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'dydx/python',
+        }
+        self._session = aiohttp.ClientSession(headers=headers)
+        return self._session
+
 
     # ============ Request Helpers ============
 
-    def _private_request(
+    async def _private_request(
         self,
         method,
         endpoint,
@@ -61,42 +79,43 @@ class Private(object):
             'DYDX-TIMESTAMP': now_iso_string,
             'DYDX-PASSPHRASE': self.api_key_credentials['passphrase'],
         }
-        return request(
+        return await request(
             self.host + request_path,
             method,
-            headers,
-            data,
+            session=self.session,
+            headers=headers,
+            data_values=data,
         )
 
-    def _get(self, endpoint, params):
-        return self._private_request(
+    async def _get(self, endpoint, params):
+        return await self._private_request(
             'get',
             generate_query_path(endpoint, params),
         )
 
-    def _post(self, endpoint, data):
-        return self._private_request(
+    async def _post(self, endpoint, data):
+        return await self._private_request(
             'post',
             endpoint,
             data
         )
 
-    def _put(self, endpoint, data):
-        return self._private_request(
+    async def _put(self, endpoint, data):
+        return await self._private_request(
             'put',
             endpoint,
             data
         )
 
-    def _delete(self, endpoint, params):
-        return self._private_request(
+    async def _delete(self, endpoint, params):
+        return await self._private_request(
             'delete',
             generate_query_path(endpoint, params),
         )
 
     # ============ Requests ============
 
-    def get_api_keys(
+    async def get_api_keys(
         self,
     ):
         '''
@@ -106,12 +125,12 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'api-keys',
             {},
         )
 
-    def get_registration(self):
+    async def get_registration(self):
         '''
         Get signature for registration
 
@@ -120,9 +139,9 @@ class Private(object):
         :raises: DydxAPIError
         '''
 
-        return self._get('registration', {})
+        return await self._get('registration', {})
 
-    def get_user(self):
+    async def get_user(self):
         '''
         Get user information
 
@@ -130,9 +149,9 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get('users', {})
+        return await self._get('users', {})
 
-    def update_user(
+    async def update_user(
         self,
         user_data={},
         email=None,
@@ -162,7 +181,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._put(
+        return await self._put(
             'users',
             {
                 'email': email,
@@ -173,7 +192,7 @@ class Private(object):
             },
         )
 
-    def create_account(
+    async def create_account(
         self,
         stark_public_key,
         stark_public_key_y_coordinate,
@@ -191,7 +210,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._post(
+        return await self._post(
             'accounts',
             {
                 'starkKey': stark_public_key,
@@ -199,7 +218,7 @@ class Private(object):
             }
         )
 
-    def get_account(
+    async def get_account(
         self,
         ethereum_address=None,
     ):
@@ -216,12 +235,12 @@ class Private(object):
         address = ethereum_address or self.default_address
         if address is None:
             raise ValueError('ethereum_address was not set')
-        return self._get(
+        return await self._get(
             '/'.join(['accounts', get_account_id(address)]),
             {},
         )
 
-    def get_accounts(
+    async def get_accounts(
         self,
     ):
         '''
@@ -231,12 +250,12 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'accounts',
             {},
         )
 
-    def get_positions(
+    async def get_positions(
         self,
         market=None,
         status=None,
@@ -271,7 +290,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'positions',
             {
                 'market': market,
@@ -281,7 +300,7 @@ class Private(object):
             },
         )
 
-    def get_orders(
+    async def get_orders(
         self,
         market=None,
         status=None,
@@ -334,7 +353,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'orders',
             {
                 'market': market,
@@ -346,7 +365,7 @@ class Private(object):
             },
         )
 
-    def get_order_by_id(
+    async def get_order_by_id(
         self,
         order_id,
     ):
@@ -360,12 +379,12 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             '/'.join(['orders', order_id]),
             {},
         )
 
-    def get_order_by_client_id(
+    async def get_order_by_client_id(
         self,
         client_id,
     ):
@@ -379,12 +398,12 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             '/'.join(['orders/client', client_id]),
             {},
         )
 
-    def create_order(
+    async def create_order(
         self,
         position_id,
         market,
@@ -525,12 +544,12 @@ class Private(object):
             'signature': order_signature,
         }
 
-        return self._post(
+        return await self._post(
             'orders',
             order,
         )
 
-    def cancel_order(
+    async def cancel_order(
         self,
         order_id,
     ):
@@ -544,12 +563,12 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._delete(
+        return await self._delete(
             '/'.join(['orders', order_id]),
             {},
         )
 
-    def cancel_all_orders(
+    async def cancel_all_orders(
         self,
         market=None,
     ):
@@ -569,12 +588,12 @@ class Private(object):
         :raises: DydxAPIError
         '''
         params = {'market': market} if market else {}
-        return self._delete(
+        return await self._delete(
             'orders',
             params,
         )
 
-    def get_fills(
+    async def get_fills(
         self,
         market=None,
         order_id=None,
@@ -605,7 +624,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'fills',
             {
                 'market': market,
@@ -615,7 +634,7 @@ class Private(object):
             }
         )
 
-    def get_transfers(
+    async def get_transfers(
         self,
         transfer_type=None,
         limit=None,
@@ -641,7 +660,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'transfers',
             {
                 'type': transfer_type,
@@ -650,7 +669,7 @@ class Private(object):
             },
         )
 
-    def create_withdrawal(
+    async def create_withdrawal(
         self,
         position_id,
         amount,
@@ -732,9 +751,9 @@ class Private(object):
             'clientId': client_id,
             'signature': signature,
         }
-        return self._post('withdrawals', params)
+        return await self._post('withdrawals', params)
 
-    def create_fast_withdrawal(
+    async def create_fast_withdrawal(
         self,
         position_id,
         credit_asset,
@@ -843,9 +862,9 @@ class Private(object):
             'clientId': client_id,
             'signature': signature,
         }
-        return self._post('fast-withdrawals', params)
+        return await self._post('fast-withdrawals', params)
 
-    def get_funding_payments(
+    async def get_funding_payments(
         self,
         market=None,
         limit=None,
@@ -872,7 +891,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'funding',
             {
                 'market': market,
@@ -881,7 +900,7 @@ class Private(object):
             },
         )
 
-    def get_historical_pnl(
+    async def get_historical_pnl(
         self,
         created_before_or_at=None,
         created_on_or_after=None,
@@ -899,7 +918,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'historical-pnl',
             {
                 'createdBeforeOrAt': created_before_or_at,

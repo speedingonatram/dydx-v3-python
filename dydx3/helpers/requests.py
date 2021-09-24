@@ -1,32 +1,36 @@
-import json
-
-import requests
-
-from dydx3.errors import DydxApiError
+import json, aiohttp
+from dydx3.errors import DydxApiError, response_to_error
 from dydx3.helpers.request_helpers import remove_nones
 
-# TODO: Use a separate session per client instance.
-session = requests.session()
-session.headers.update({
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'User-Agent': 'dydx/python',
-})
 
+async def request(uri, method, session=None, headers=None, data_values={}):
+    temp_session = None
+    if session is None:
+        temp_session = aiohttp.ClientSession()
+        session = temp_session
+    try:
+        data = json.dumps(remove_nones(data_values))
 
-def request(uri, method, headers=None, data_values={}):
-    response = send_request(
-        uri,
-        method,
-        headers,
-        data=json.dumps(
-            remove_nones(data_values)
+        response = await send_request(
+            session,
+            uri,
+            method,
+            headers,
+            data=data
         )
-    )
-    if not str(response.status_code).startswith('2'):
-        raise DydxApiError(response)
-    return response.json() if response.content else '{}'
+        if not str(response.status).startswith('2'):
+            err = await response_to_error(response)
+            raise err
+
+        res = (await response.json()) if response.content else '{}'
+
+    finally:
+        # close temp session
+        if temp_session:
+            temp_session.close()
+
+    return res
 
 
-def send_request(uri, method, headers=None, **kwargs):
-    return getattr(session, method)(uri, headers=headers, **kwargs)
+async def send_request(session, uri, method, headers=None, **kwargs):
+    return await getattr(session, method)(uri, headers=headers, **kwargs)

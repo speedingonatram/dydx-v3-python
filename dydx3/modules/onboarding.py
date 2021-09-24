@@ -1,4 +1,4 @@
-import base64
+import base64, aiohttp
 
 from web3 import Web3
 
@@ -6,7 +6,6 @@ from dydx3.constants import OFF_CHAIN_ONBOARDING_ACTION
 from dydx3.constants import OFF_CHAIN_KEY_DERIVATION_ACTION
 from dydx3.eth_signing import SignOnboardingAction
 from dydx3.helpers.requests import request
-
 
 class Onboarding(object):
 
@@ -25,10 +24,26 @@ class Onboarding(object):
         self.stark_public_key_y_coordinate = stark_public_key_y_coordinate
 
         self.signer = SignOnboardingAction(eth_signer, network_id)
+        self._session = None
+
+    @property
+    def session(self):
+        """
+        Lazily created the session
+        """
+        if self._session:
+            return self._session
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'dydx/python',
+        }
+        self._session = aiohttp.ClientSession(headers=headers)
+        return self._session
 
     # ============ Request Helpers ============
 
-    def _post(
+    async def _post(
         self,
         endpoint,
         data,
@@ -42,19 +57,20 @@ class Onboarding(object):
         )
 
         request_path = '/'.join(['/v3', endpoint])
-        return request(
+        return await request(
             self.host + request_path,
             'post',
-            {
+            session=self.session,
+            headers={
                 'DYDX-SIGNATURE': signature,
                 'DYDX-ETHEREUM-ADDRESS': ethereum_address,
             },
-            data,
+            data_values=data,
         )
 
     # ============ Requests ============
 
-    def create_user(
+    async def create_user(
         self,
         stark_public_key=None,
         stark_public_key_y_coordinate=None,
@@ -63,24 +79,17 @@ class Onboarding(object):
     ):
         '''
         Onboard a user with an Ethereum address and STARK key.
-
         By default, onboards using the STARK and/or API public keys
         corresponding to private keys that the client was initialized with.
-
         :param stark_public_key: optional
         :type stark_public_key: str
-
         :param stark_public_key_y_coordinate: optional
         :type stark_public_key_y_coordinate: str
-
         :param ethereum_address: optional
         :type ethereum_address: str
-
         :param referred_by_affiliate_link: optional
         :type referred_by_affiliate_link: str
-
         :returns: { apiKey, user, account }
-
         :raises: DydxAPIError
         '''
         stark_key = stark_public_key or self.stark_public_key
@@ -95,7 +104,7 @@ class Onboarding(object):
             raise ValueError(
                 'STARK private key or public key y-coordinate is required'
             )
-        return self._post(
+        return await self._post(
             'onboarding',
             {
                 'starkKey': stark_key,
@@ -113,11 +122,9 @@ class Onboarding(object):
     ):
         '''
         Derive a STARK key pair deterministically from an Ethereum key.
-
         This is the function used by the dYdX frontend to derive a user's
         STARK key pair in a way that is recoverable. Programmatic traders may
         optionally derive their STARK key pair in the same way.
-
         :param ethereum_address: optional
         :type ethereum_address: str
         '''
@@ -136,7 +143,6 @@ class Onboarding(object):
     ):
         '''
         Derive API credentials deterministically from an Ethereum key.
-
         This can be used to recover the default API key credentials, which are
         the same set of credentials used in the dYdX frontend.
         '''
