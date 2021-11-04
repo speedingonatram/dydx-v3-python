@@ -308,6 +308,7 @@ class Private(object):
         order_type=None,
         limit=None,
         created_before_or_at=None,
+        returnLatestOrders=None,
     ):
         '''
         Get orders
@@ -349,6 +350,9 @@ class Private(object):
         :param created_before_or_at: optional
         :type created_before_or_at: ISO str
 
+        :param returnLatestOrders: optional
+        :type returnLatestOrders: boolean
+
         :returns: Array of orders
 
         :raises: DydxAPIError
@@ -362,6 +366,7 @@ class Private(object):
                 'type': order_type,
                 'limit': limit,
                 'createdBeforeOrAt': created_before_or_at,
+                'returnLatestOrders': returnLatestOrders,
             },
         )
 
