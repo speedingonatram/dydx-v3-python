@@ -316,7 +316,7 @@ class Public(object):
             },
         )
 
-    def get_config(self):
+    async def get_config(self):
         '''
         Get global config variables for the exchange as a whole.
         This includes (but is not limited to) details on the exchange,
@@ -326,4 +326,4 @@ class Public(object):
 
         :raises: DydxAPIError
         '''
-        return self._get('/v3/config')
+        return await self._get('/v3/config')
