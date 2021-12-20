@@ -27,6 +27,9 @@ class Public(object):
         self._session = aiohttp.ClientSession(headers=headers)
         return self._session
 
+
+    async def close(self):
+        await self._session.close()
     # ============ Request Helpers ============
 
     async def _get(self, request_path, params={}):
