@@ -28,7 +28,7 @@ class Public(object):
         return self._session
 
     async def close(self):
-        if self._sessions:
+        if self._session:
             await self._session.close()
     # ============ Request Helpers ============
 
