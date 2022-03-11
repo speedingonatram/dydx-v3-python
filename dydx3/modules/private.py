@@ -57,7 +57,8 @@ class Private(object):
         return self._session
 
     async def close(self):
-        await self._session.close()
+        if self._session:
+            await self._session.close()
     # ============ Request Helpers ============
 
     async def _private_request(

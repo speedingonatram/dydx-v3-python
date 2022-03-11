@@ -41,3 +41,5 @@ htmlcov/
 
 # Local testing
 test_local.py
+
+*.idea
