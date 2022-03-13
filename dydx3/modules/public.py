@@ -30,6 +30,7 @@ class Public(object):
     async def close(self):
         if self._session:
             await self._session.close()
+
     # ============ Request Helpers ============
 
     async def _get(self, request_path, params={}):
@@ -201,16 +202,32 @@ class Public(object):
             {'effectiveBeforeOrAt': effective_before_or_at},
         )
 
-    async def get_fast_withdrawal(self):
+    async def get_fast_withdrawal(
+            self,
+            creditAsset=None,
+            creditAmount=None,
+            debitAmount=None,
+    ):
         '''
         Get all fast withdrawal account information
-
+        :param creditAsset: optional
+        :type creditAsset: str
+        :param creditAmount: optional
+        :type creditAmount: str
+        :param debitAmount: optional
+        :type debitAmount: str
         :returns: All fast withdrawal accounts
-
         :raises: DydxAPIError
         '''
         uri = '/v3/fast-withdrawals'
-        return await self._get(uri)
+        return await self._get(
+            uri,
+            {
+                'creditAsset': creditAsset,
+                'creditAmount': creditAmount,
+                'debitAmount': debitAmount,
+            },
+        )
 
     async def get_candles(
         self,
@@ -330,3 +347,13 @@ class Public(object):
         :raises: DydxAPIError
         '''
         return await self._get('/v3/config')
+
+    async def get_insurance_fund_balance(self):
+        '''
+        Get the balance of the dYdX insurance fund
+
+        :returns: Balance of the dYdX insurance fund in USD
+
+        :raises: DydxAPIError
+        '''
+        return await self._get('/v3/insurance-fund/balance')

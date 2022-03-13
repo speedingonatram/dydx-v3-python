@@ -59,6 +59,7 @@ class Private(object):
     async def close(self):
         if self._session:
             await self._session.close()
+
     # ============ Request Helpers ============
 
     async def _private_request(
@@ -160,6 +161,7 @@ class Private(object):
         username=None,
         is_sharing_username=None,
         is_sharing_address=None,
+        country=None,
     ):
         '''
         Update user information
@@ -179,6 +181,9 @@ class Private(object):
         :param is_sharing_address: optional
         :type is_sharing_address: str
 
+        :param country optional
+        :type country: str (ISO 3166-1 Alpha-2)
+
         :returns: User
 
         :raises: DydxAPIError
@@ -191,6 +196,7 @@ class Private(object):
                 'isSharingUsername': is_sharing_username,
                 'isSharingAddress': is_sharing_address,
                 'userData': json_stringify(user_data),
+                'country': country,
             },
         )
 
@@ -355,7 +361,7 @@ class Private(object):
         :param returnLatestOrders: optional
         :type returnLatestOrders: boolean
 
-        :returns: Array of orders
+        :returns: Array of Orders
 
         :raises: DydxAPIError
         '''
@@ -369,6 +375,40 @@ class Private(object):
                 'limit': limit,
                 'createdBeforeOrAt': created_before_or_at,
                 'returnLatestOrders': returnLatestOrders,
+            },
+        )
+
+    async def get_active_orders(
+        self,
+        market,
+        side=None,
+        id=None,
+    ):
+        '''
+        Get ActiveOrders
+        :param market: required
+        :type market: str in list [
+            "BTC-USD",
+            "ETH-USD",
+            "LINK-USD",
+            ...
+        ]
+        :param side: optional (required if id is passed in)
+        :type side: str in list [
+            "BUY",
+            "SELL",
+        ]
+        param id: optional
+        :type id: str
+        :returns: Array of ActiveOrders
+        :raises: DydxAPIError
+        '''
+        return await self._get(
+            'active-orders',
+            {
+                'market': market,
+                'side': side,
+                'id': id,
             },
         )
 
@@ -598,6 +638,40 @@ class Private(object):
         return await self._delete(
             'orders',
             params,
+        )
+
+    async def cancel_active_orders(
+            self,
+            market,
+            side=None,
+            id=None,
+    ):
+        '''
+        Cancel ActiveOrders
+        :param market: required
+        :type market: str in list [
+            "BTC-USD",
+            "ETH-USD",
+            "LINK-USD",
+            ...
+        ]
+        :param side: optional (required if id is passed in)
+        :type side: str in list [
+            "BUY",
+            "SELL",
+        ]
+        param id: optional
+        :type id: str
+        :returns: Array of ActiveOrders
+        :raises: DydxAPIError
+        '''
+        return await self._delete(
+            'active-orders',
+            {
+                'market': market,
+                'side': side,
+                'id': id,
+            },
         )
 
     async def get_fills(
@@ -933,7 +1007,7 @@ class Private(object):
             },
         )
 
-    def send_verification_email(
+    async def send_verification_email(
         self,
     ):
         '''
@@ -943,12 +1017,12 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._put(
+        return await self._put(
             'emails/send-verification-email',
             {},
         )
 
-    def get_trading_rewards(
+    async def get_trading_rewards(
         self,
         epoch=None,
     ):
@@ -962,7 +1036,7 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get(
+        return await self._get(
             'rewards/weight',
             {
                 'epoch': epoch,
@@ -990,7 +1064,7 @@ class Private(object):
             },
         )
 
-    def get_retroactive_mining_rewards(
+    async def get_retroactive_mining_rewards(
         self,
     ):
         '''
@@ -1000,7 +1074,23 @@ class Private(object):
 
         :raises: DydxAPIError
         '''
-        return self._get('rewards/retroactive-mining')
+        return await self._get('rewards/retroactive-mining')
+
+    async def request_testnet_tokens(
+        self,
+    ):
+        '''
+        Requests tokens on dYdX's staging server.
+        NOTE: this will not work on Mainnet/Production.
+
+        :returns: Transfer
+
+        :raises: DydxAPIError
+        '''
+        if (self.network_id != 3):
+            raise ValueError('network_id is not Ropsten')
+
+        return await self._post('testnet/tokens', {})
 
     # ============ Signing ============
 
