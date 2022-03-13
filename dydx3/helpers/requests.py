@@ -21,7 +21,8 @@ async def request(uri, method, session=None, headers=None, data_values={}):
         session = temp_session
     try:
 
-        response = send_request(
+        response = await send_request(
+            session,
             uri,
             method,
             headers,
@@ -30,13 +31,14 @@ async def request(uri, method, session=None, headers=None, data_values={}):
             )
         )
 
-        if not str(response.status_code).startswith('2'):
-            raise DydxApiError(response)
+        if not str(response.status).startswith('2'):
+            err = await response_to_error(response)
+            raise err
 
         if response.content:
-            return Response(response.json(), response.headers)
+            return Response(await response.json(), response.headers).data
         else:
-            return Response('{}', response.headers)
+            return Response('{}', response.headers).data
 
     finally:
         # close temp session
@@ -46,3 +48,13 @@ async def request(uri, method, session=None, headers=None, data_values={}):
 
 async def send_request(session, uri, method, headers=None, **kwargs):
     return await getattr(session, method)(uri, headers=headers, **kwargs)
+
+
+async def response_to_error(response):
+     status = response.status
+     try:
+         msg = await response.json(content_type=None)  # do not check content_type
+     except ValueError:
+         msg = await response.text()
+
+     return DydxApiError(response, status, msg)

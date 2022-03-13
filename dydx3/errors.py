@@ -6,14 +6,11 @@ class DydxError(Exception):
 
 class DydxApiError(DydxError):
 
-    def __init__(self, response):
-        self.status_code = response.status_code
-        try:
-            self.msg = response.json()
-        except ValueError:
-            self.msg = response.text
+    def __init__(self, response, status, msg):
+        self.msg = msg
+        self.status_code = response.status
         self.response = response
-        self.request = getattr(response, 'request', None)
+        self.request = getattr(response, 'request_info', None)
 
     def __str__(self):
         return self.__repr__()
