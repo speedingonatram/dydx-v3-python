@@ -6,6 +6,7 @@ from dydx3.constants import OFF_CHAIN_ONBOARDING_ACTION
 from dydx3.constants import OFF_CHAIN_KEY_DERIVATION_ACTION
 from dydx3.eth_signing import SignOnboardingAction
 from dydx3.helpers.requests import request
+from dydx3.starkex.helpers import private_key_to_public_key_pair_hex
 
 
 class Onboarding(object):
@@ -16,11 +17,13 @@ class Onboarding(object):
         eth_signer,
         network_id,
         default_address,
+        api_timeout,
         stark_public_key=None,
         stark_public_key_y_coordinate=None,
     ):
         self.host = host
         self.default_address = default_address
+        self.api_timeout = api_timeout
         self.stark_public_key = stark_public_key
         self.stark_public_key_y_coordinate = stark_public_key_y_coordinate
 
@@ -66,7 +69,8 @@ class Onboarding(object):
                 'DYDX-SIGNATURE': signature,
                 'DYDX-ETHEREUM-ADDRESS': ethereum_address,
             },
-            data_values=data,
+            data,
+            self.api_timeout,
         )
 
     # ============ Requests ============
@@ -91,8 +95,10 @@ class Onboarding(object):
         :type ethereum_address: str
         :param referred_by_affiliate_link: optional
         :type referred_by_affiliate_link: str
+
         :param country optional
         :type country: str (ISO 3166-1 Alpha-2)
+
         :returns: { apiKey, user, account }
         :raises: DydxAPIError
         '''
@@ -140,7 +146,15 @@ class Onboarding(object):
         signature_int = int(signature, 16)
         hashed_signature = Web3.solidityKeccak(['uint256'], [signature_int])
         private_key_int = int(hashed_signature.hex(), 16) >> 5
-        return hex(private_key_int)
+        private_key_hex = hex(private_key_int)
+        public_x, public_y = private_key_to_public_key_pair_hex(
+            private_key_hex,
+        )
+        return {
+            'public_key': public_x,
+            'public_key_y_coordinate': public_y,
+            'private_key': private_key_hex
+        }
 
     def recover_default_api_key_credentials(
         self,

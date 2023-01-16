@@ -15,7 +15,7 @@
 
 Python client for dYdX (v3 API).
 
-The library is currently tested against Python versions 2.7, 3.4, 3.5, and 3.6
+The library is currently tested against Python versions 2.7, 3.4, 3.5, 3.6, 3.9, and 3.11.
 
 ## Installation
 
@@ -132,3 +132,15 @@ client = Client(
 ```
 
 The path should point to a C++ shared library file, built from Starkware's `crypto-cpp` library ([CMake target](https://github.com/starkware-libs/crypto-cpp/blob/601de408bee9f897315b8a5cb0c88e2450a91282/src/starkware/crypto/ffi/CMakeLists.txt#L3)) for the particular platform (e.g. Linux, etc.) that you are running your trading program on.
+
+## Running tests
+
+If you want to run tests when developing the library locally, clone the repo and run:
+
+```
+pip install -r requirements.txt
+docker-compose up # In a separate terminal
+V3_API_HOST=<api-host> tox
+```
+
+NOTE: `api-host` should be `https://api.stage.dydx.exchange` to test in staging.

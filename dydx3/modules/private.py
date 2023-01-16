@@ -6,6 +6,7 @@ import aiohttp
 from dydx3.constants import COLLATERAL_ASSET
 from dydx3.constants import COLLATERAL_TOKEN_DECIMALS
 from dydx3.constants import FACT_REGISTRY_CONTRACT
+from dydx3.constants import NETWORK_ID_GOERLI
 from dydx3.constants import TIME_IN_FORCE_GTT
 from dydx3.constants import TOKEN_CONTRACTS
 from dydx3.helpers.db import get_account_id
@@ -22,6 +23,7 @@ from dydx3.starkex.helpers import nonce_from_client_id
 from dydx3.starkex.order import SignableOrder
 from dydx3.starkex.withdrawal import SignableWithdrawal
 from dydx3.starkex.conditional_transfer import SignableConditionalTransfer
+from dydx3.starkex.transfer import SignableTransfer
 
 
 class Private(object):
@@ -32,12 +34,14 @@ class Private(object):
         network_id,
         stark_private_key,
         default_address,
+        api_timeout,
         api_key_credentials,
     ):
         self.host = host
         self.network_id = network_id
         self.stark_private_key = stark_private_key
         self.default_address = default_address
+        self.api_timeout = api_timeout
         self.api_key_credentials = api_key_credentials
         self._session = None
 
@@ -88,6 +92,7 @@ class Private(object):
             session=self.session,
             headers=headers,
             data_values=data,
+            api_timeout=self.api_timeout
         )
 
     async def _get(self, endpoint, params):
@@ -162,6 +167,7 @@ class Private(object):
         is_sharing_username=None,
         is_sharing_address=None,
         country=None,
+        language_code=None,
     ):
         '''
         Update user information
@@ -183,6 +189,9 @@ class Private(object):
 
         :param country optional
         :type country: str (ISO 3166-1 Alpha-2)
+
+        :param language_code optional
+        :type language_code: str (ISO 639-1, including 'zh-CN')
 
         :returns: User
 
@@ -468,6 +477,7 @@ class Private(object):
         expiration=None,
         expiration_epoch_seconds=None,
         signature=None,
+        reduce_only=None
     ):
         '''
         Post an order
@@ -537,6 +547,9 @@ class Private(object):
         :param signature: optional
         type signature: str
 
+        :param reduce_only: optional
+        type reduce_only: bool
+
         :returns: Order
 
         :raises: DydxAPIError
@@ -589,6 +602,7 @@ class Private(object):
             'postOnly': post_only,
             'clientId': client_id,
             'signature': order_signature,
+            'reduceOnly': reduce_only,
         }
 
         return await self._post(
@@ -843,6 +857,7 @@ class Private(object):
         to_address,
         lp_position_id,
         lp_stark_public_key,
+        slippage_tolerance=None,
         client_id=None,
         expiration=None,
         expiration_epoch_seconds=None,
@@ -874,6 +889,9 @@ class Private(object):
 
         :param lp_stark_public_key: required
         :type lp_stark_public_key: str
+
+        :param slippage_tolerance: optional
+        :type slippage_tolerance: str
 
         :param client_id: optional
         :type client_id: str
@@ -936,6 +954,7 @@ class Private(object):
             'creditAsset': credit_asset,
             'creditAmount': credit_amount,
             'debitAmount': debit_amount,
+            'slippageTolerance': slippage_tolerance,
             # TODO: Signature verification should work regardless of case.
             'toAddress': to_address.lower(),
             'lpPositionId': lp_position_id,
@@ -1043,11 +1062,33 @@ class Private(object):
             },
         )
 
+    def get_liquidity_provider_rewards_v2(
+        self,
+        epoch=None,
+    ):
+        '''
+        Get liquidity provider rewards
+
+        :param epoch: optional
+        :type epoch: int
+
+        :returns: LiquidityProviderRewards
+
+        :raises: DydxAPIError
+        '''
+        return self._get(
+            'rewards/liquidity-provider',
+            {
+                'epoch': epoch,
+            },
+        )
+
     def get_liquidity_provider_rewards(
         self,
         epoch=None,
     ):
         '''
+        (Deprecated, please use get_liquidity_provider_rewards_v2)
         Get liquidity rewards
 
         :param epoch: optional

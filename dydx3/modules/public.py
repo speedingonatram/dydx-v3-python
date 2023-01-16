@@ -1,4 +1,6 @@
 import aiohttp
+
+from dydx3.constants import DEFAULT_API_TIMEOUT
 from dydx3.helpers.request_helpers import generate_query_path
 from dydx3.helpers.requests import request
 
@@ -8,9 +10,11 @@ class Public(object):
     def __init__(
         self,
         host,
+        api_timeout=None,
     ):
         self.host = host
         self._session = None
+        self.api_timeout = api_timeout or DEFAULT_API_TIMEOUT
 
     @property
     def session(self):
@@ -28,6 +32,8 @@ class Public(object):
         return self._session
 
     async def close(self):
+        """_summary_
+        """
         if self._session:
             await self._session.close()
 
@@ -38,6 +44,7 @@ class Public(object):
             generate_query_path(self.host + request_path, params),
             'get',
             session=self.session,
+            api_timeout=self.api_timeout
         )
 
     async def _put(self, endpoint, data):
@@ -47,6 +54,7 @@ class Public(object):
             session=self.session,
             headers={},
             data_values=data,
+            api_timeout=self.api_timeout
         )
 
     # ============ Requests ============
@@ -203,19 +211,23 @@ class Public(object):
         )
 
     async def get_fast_withdrawal(
-            self,
-            creditAsset=None,
-            creditAmount=None,
-            debitAmount=None,
+        self,
+        creditAsset=None,
+        creditAmount=None,
+        debitAmount=None,
     ):
         '''
         Get all fast withdrawal account information
+
         :param creditAsset: optional
         :type creditAsset: str
+
         :param creditAmount: optional
         :type creditAmount: str
+
         :param debitAmount: optional
         :type debitAmount: str
+
         :returns: All fast withdrawal accounts
         :raises: DydxAPIError
         '''
@@ -357,3 +369,52 @@ class Public(object):
         :raises: DydxAPIError
         '''
         return await self._get('/v3/insurance-fund/balance')
+
+    async def get_profile(
+        self,
+        publicId,
+    ):
+        '''
+        Get Public Profile
+
+        :param publicId: required
+        :type publicId: str
+
+        :returns: PublicProfile
+
+        :raises: DydxAPIError
+        '''
+        uri = '/'.join(['/v3/profile', publicId])
+        return await self._get(uri)
+
+    async def get_historical_leaderboard_pnls(
+        self,
+        period,
+        limit=None,
+    ):
+        '''
+        Get Historical Leaderboard Pnls
+
+        :param period: required
+        :type period: str
+        :type period: str in list [
+            "LEAGUES",
+            "DAILY",
+            "DAILY_COMPETITION",
+            ...
+        ]
+
+        :param limit: optional
+        :type limit: str
+
+        :returns: HistoricalLeaderboardPnl
+
+        :raises: DydxAPIError
+        '''
+        uri = '/'.join(['/v3/accounts/historical-leaderboard-pnls', period])
+        return await self._get(
+            uri,
+            {
+                'limit': limit,
+            }
+        )
